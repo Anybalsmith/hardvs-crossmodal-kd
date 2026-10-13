@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "hardvs-kd"
+version = "0.1.0"
+description = "mmaction2 plugins for RGB -> Event cross-modal distillation on HARDVS"
+requires-python = ">=3.8"
+# torch, mmcv, mmengine and mmaction2 are installed separately (see README).
+dependencies = ["numpy", "Pillow"]
+
+[tool.setuptools.packages.find]
+include = ["hardvs_kd*"]
