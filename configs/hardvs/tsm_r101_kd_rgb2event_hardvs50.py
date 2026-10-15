@@ -12,7 +12,7 @@ ann_dir = 'data/hardvs/annotations/subsets/classes_50_seed0'
 num_classes = 50
 
 # Only the `model` of the teacher config is used.
-teacher_config = 'configs/hardvs_subsets/tsm_r101_rgb_hardvs50.py'
+teacher_config = 'configs/hardvs/tsm_r101_rgb_hardvs50.py'
 # Checkpoint of the trained RGB baseline, usually given on the command line:
 #   --cfg-options model.teacher_checkpoint=<rgb_work_dir>/best_acc_top1_epoch_XX.pth
 teacher_checkpoint = 'work_dirs/tsm_r101_rgb_hardvs50/best_acc_top1_epoch_XX.pth'

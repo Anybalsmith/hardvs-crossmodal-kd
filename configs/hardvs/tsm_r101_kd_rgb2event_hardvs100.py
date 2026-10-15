@@ -6,7 +6,7 @@ ann_dir = 'data/hardvs/annotations/subsets/classes_100_seed0'
 num_classes = 100
 
 model = dict(
-    teacher_config='configs/hardvs_subsets/tsm_r101_rgb_hardvs100.py',
+    teacher_config='configs/hardvs/tsm_r101_rgb_hardvs100.py',
     teacher_checkpoint=
     'work_dirs/tsm_r101_rgb_hardvs100/best_acc_top1_epoch_XX.pth',
     cls_head=dict(num_classes=num_classes))

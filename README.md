@@ -1,17 +1,21 @@
 # RGB → Event cross-modal distillation on HARDVS
 
-Training code for the HARDVS class-subset experiments. The goal is to see
-whether distilling an RGB model into an event-only student helps, compared
-with training the event model alone.
+Training code for the HARDVS experiments, on the full dataset (300 classes)
+and on class subsets. The goal is to see whether distilling an RGB model into
+an event-only student helps, compared with training the event model alone.
 
-Three models are trained on each subset. All of them are TSM ResNet-101 with
+Three models are trained on each dataset. All of them are TSM ResNet-101 with
 8 frames at 224×224:
 
 | Config | Model |
 |---|---|
-| `tsm_r101_rgb_hardvs{50,100}.py` | RGB (APS frames) baseline, also used as the KD teacher |
-| `tsm_r101_event_hardvs{50,100}.py` | Event (DVS frames) baseline |
-| `tsm_r101_kd_rgb2event_hardvs{50,100}.py` | Event student distilled from the frozen RGB teacher |
+| `tsm_r101_rgb_hardvs{50,100,300}.py` | RGB (APS frames) baseline, also used as the KD teacher |
+| `tsm_r101_event_hardvs{50,100,300}.py` | Event (DVS frames) baseline |
+| `tsm_r101_kd_rgb2event_hardvs{50,100,300}.py` | Event student distilled from the frozen RGB teacher |
+
+`hardvs300` is the full HARDVS dataset. `hardvs50` and `hardvs100` are the
+50 and 100-class subsets (seed 0). All three use exactly the same settings,
+only the annotation files and the number of classes change.
 
 The KD loss is `CE + 0.3 · KL(T=4) + 0.5 · attention transfer` on the last
 backbone feature map. Both KD terms are weighted per sample by the teacher
@@ -79,9 +83,10 @@ python tools/data/hardvs/make_hardvs_annotations.py
 ```
 
 This writes `data/hardvs/annotations/{train,val,test}_label_{aps,dvs}.csv`,
-one `action_XXX/<seq>/<seq>_{aps,dvs},<label>` row per recording.
+one `action_XXX/<seq>/<seq>_{aps,dvs},<label>` row per recording. These files
+are the annotations of the full dataset (`hardvs300` configs).
 
-### 2. Class subsets
+### 2. Class subsets (only for the `hardvs50` / `hardvs100` configs)
 
 ```bash
 python tools/data/hardvs/make_hardvs_class_subset.py --num-classes 50 --seed 0
@@ -94,34 +99,40 @@ included in the 100-class one. Each subset goes to
 `data/hardvs/annotations/subsets/classes_<N>_seed<S>/`, along with
 `classes.csv` (new label → original HARDVS class) and `subset_info.json`.
 
-Expected sizes, which you can use to check that you got the same subsets:
+Expected sizes, which you can use to check that you got the same data:
 
-| Subset | train | val | test |
+| Dataset | train | val | test |
 |---|---|---|---|
+| full (`hardvs300`) | 64530 | 10734 | 32386 |
 | `classes_50_seed0` | 11103 | 1847 | 5573 |
 | `classes_100_seed0` | 22622 | 3761 | 11356 |
 
-Two versions of the HARDVS split lists exist. They differ only for classes
-297–299, so both give exactly the same seed-0 subsets.
 
 ### 3. Event densities
 
 Training uses event-density aware sampling. Among the frames that hold 95% of
 the event mass, 6 frames are drawn weighted by density, and 2 frames are drawn
 uniformly among the remaining ones. The RGB baseline uses the same sampling,
-computed on the paired DVS recording. The per-frame densities (fraction of
-non-white pixels) must be computed once:
+computed on the paired DVS recording. Validation and test use uniform
+sampling, so only the training recordings need densities. The per-frame
+densities (fraction of non-white pixels) must be computed once:
 
 ```bash
+# Full training split: covers every subset
 python tools/data/hardvs/precompute_event_density.py \
-    --ann-files data/hardvs/annotations/subsets/classes_100_seed0/*_dvs.csv \
+    --ann-files data/hardvs/annotations/train_label_dvs.csv \
+    --data-root data/hardvs/rawframes --num-workers 8
+
+# Or only the subsets, if you do not train on the full dataset
+python tools/data/hardvs/precompute_event_density.py \
+    --ann-files data/hardvs/annotations/subsets/classes_100_seed0/train_label_dvs.csv \
     --data-root data/hardvs/rawframes --num-workers 8
 ```
 
 This writes a `.event_density.npy` file inside each `<seq>_dvs` folder. The
 100-class subset covers the 50-class one. Valid caches are skipped, so the
 script can be re-run safely. Without the caches, training still works but is
-much slower, because the densities are recomputed at every access.
+much slower, because the densities are recomputed every time.
 
 ## Training
 
@@ -131,15 +142,16 @@ linearly with the total batch size (0.02 for 128, so 0.005 here).
 
 ```bash
 # 1. Baselines
-python tools/train.py configs/hardvs_subsets/tsm_r101_rgb_hardvs50.py
-python tools/train.py configs/hardvs_subsets/tsm_r101_event_hardvs50.py
+python tools/train.py configs/hardvs/tsm_r101_rgb_hardvs50.py
+python tools/train.py configs/hardvs/tsm_r101_event_hardvs50.py
 
 # 2. Distillation, with the best checkpoint of the RGB baseline as teacher
-python tools/train.py configs/hardvs_subsets/tsm_r101_kd_rgb2event_hardvs50.py \
+python tools/train.py configs/hardvs/tsm_r101_kd_rgb2event_hardvs50.py \
     --cfg-options model.teacher_checkpoint=work_dirs/tsm_r101_rgb_hardvs50/best_acc_top1_epoch_XX.pth
 ```
 
-Replace `hardvs50` by `hardvs100` for the 100-class subset. For multiple GPUs,
+Replace `hardvs50` by `hardvs100` for the 100-class subset, or by `hardvs300`
+for the full dataset. For multiple GPUs,
 use `bash tools/dist_train.sh <config> <num_gpus>`. Keep in mind that the
 total batch size, and therefore the learning rate, then changes.
 
@@ -164,13 +176,13 @@ ResNet-50 or ResNet-18 event student:
 
 ```bash
 # ResNet-50 (2048 channels)
-python tools/train.py configs/hardvs_subsets/tsm_r101_kd_rgb2event_hardvs50.py \
+python tools/train.py configs/hardvs/tsm_r101_kd_rgb2event_hardvs50.py \
     --work-dir work_dirs/tsm_r50_kd_rgb2event_hardvs50 \
     --cfg-options model.teacher_checkpoint=<rgb ckpt> \
         model.backbone.depth=50 model.backbone.pretrained=torchvision://resnet50
 
 # ResNet-18 (512 channels)
-python tools/train.py configs/hardvs_subsets/tsm_r101_kd_rgb2event_hardvs50.py \
+python tools/train.py configs/hardvs/tsm_r101_kd_rgb2event_hardvs50.py \
     --work-dir work_dirs/tsm_r18_kd_rgb2event_hardvs50 \
     --cfg-options model.teacher_checkpoint=<rgb ckpt> \
         model.backbone.depth=18 model.backbone.pretrained=torchvision://resnet18 \
@@ -194,7 +206,7 @@ For a KD checkpoint, this reports both the student and the teacher accuracy.
 ```
 configs/
   _base_/                    model (TSM-R101), schedule (SGD, 40 epochs), runtime
-  hardvs_subsets/            RGB / Event / KD configs for the 50 and 100-class subsets
+  hardvs/                    RGB / Event / KD configs: full dataset (300) and 50/100-class subsets
 hardvs_kd/                   mmaction2 plugins (registered via custom_imports)
   datasets/
     hardvs_frame_dataset.py  single-modality dataset (RGB or event)
