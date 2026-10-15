@@ -1,6 +1,6 @@
 # Data, generated annotations and training outputs
-data/
-work_dirs/
+/data/
+/work_dirs/
 *.pth
 
 # Python

@@ -15,7 +15,9 @@ Three models are trained on each dataset. All of them are TSM ResNet-101 with
 
 `hardvs300` is the full HARDVS dataset. `hardvs50` and `hardvs100` are the
 50 and 100-class subsets (seed 0). All three use exactly the same settings,
-only the annotation files and the number of classes change.
+only the annotation files and the number of classes change. The
+`*_hardvs300_session.py` configs train on the session-based re-split of the
+full dataset (see [Other splits](#4-other-splits-optional)).
 
 The KD loss is `CE + 0.3 · KL(T=4) + 0.5 · attention transfer` on the last
 backbone feature map. Both KD terms are weighted per sample by the teacher
@@ -37,7 +39,7 @@ conda activate hardvs_kd
 
 pip install torch==2.7.1 torchvision==0.22.1 --index-url https://download.pytorch.org/whl/cu118
 pip install "numpy<2" mmengine==0.10.7 mmcv-lite==2.1.0 \
-    opencv-python decord einops scipy matplotlib Pillow
+    opencv-python decord einops scipy matplotlib Pillow pandas
 
 # mmaction2 must be installed from source in editable mode: the non-editable
 # install of v1.2.0 is broken (missing mmaction.models.localizers.drn).
@@ -130,9 +132,77 @@ python tools/data/hardvs/precompute_event_density.py \
 ```
 
 This writes a `.event_density.npy` file inside each `<seq>_dvs` folder. The
-100-class subset covers the 50-class one. Valid caches are skipped, so the
+100-class subset covers the 50-class one. A re-split (step 4) moves official
+val/test recordings into its training split: in that case, pass the three
+files `data/hardvs/annotations/{train,val,test}_label_dvs.csv`. Valid caches are skipped, so the
 script can be re-run safely. Without the caches, training still works but is
 much slower, because the densities are recomputed every time.
+
+### 4. Other splits (optional)
+
+All scripts below read the annotation files of step 1 and write the same
+`{split}_label_{aps,dvs}.csv` files, so any config can use their output.
+
+**Session-based re-split** (`make_hardvs_splits.py`). In the official split,
+the recordings of one class made in the same session (same day and hour) are
+spread over train, val and test. Test recordings are therefore often near
+duplicates of training ones (same subject, background and lighting), which
+can make test accuracy optimistic. This script pools the three official
+splits and re-splits each class so that every session goes to a single split:
+
+```bash
+python tools/data/hardvs/make_hardvs_splits.py \
+    --out-dir data/hardvs/annotations/splits/session_hour_seed0
+```
+
+Options:
+
+- `--session-level day` groups the recordings by day instead of by hour.
+- `--mode random` splits the recordings of each class at random, without
+  sessions, like the official split.
+- `--ratios` sets the target share of recordings per split (default
+  `0.6 0.1 0.3`, close to the official split).
+- `--seed` changes which sessions go to val and test.
+- `--ann-dir` points to a class subset to re-split it instead of the full
+  dataset.
+
+A class with only 2 sessions gets no validation recording. A class with a
+single session is split at random. `split_info.json` lists these classes and
+gives, for each split, the share of recordings whose session is also in
+train. With the default settings (`session_hour_seed0`), you should get:
+
+| Split | recordings | classes | session also in train |
+|---|---|---|---|
+| train | 62558 | 300 | 100% |
+| val | 12012 | 269 | 1.0% |
+| test | 33080 | 300 | 1.1% |
+
+8 single-session classes are split at random. The
+`*_hardvs300_session.py` configs train on this split.
+
+**KD dev subset** (`make_hardvs_kd_dev_subset.py`, requires `pandas`). This
+is a small subset for quick KD experiments. It keeps 56 classes picked from
+earlier full-dataset KD runs: classes where KD helps or hurts most, hard
+classes, short sequences, and classes where RGB is much better or worse than
+events. Each class gets at most 60 / 10 / 30 recordings in train / val /
+test, drawn within the official splits. Labels are remapped to `0..55`
+(`class_mapping.csv`). Only recordings with both APS and DVS frames on disk
+are kept.
+
+```bash
+python tools/data/hardvs/make_hardvs_kd_dev_subset.py
+# -> data/hardvs/annotations/subsets/kd_dev_56cls_seed42/ (3360 / 560 / 1680 recordings)
+```
+
+The result depends on which frames are on disk. With the complete HARDVS
+frames, no recording is dropped. An earlier version of this subset was built
+from a partial extraction where 34 test recordings had no frames, so its test
+split differs for one class (`action_144`, 18 recordings).
+
+**Training on another split.** Add a config that inherits from the matching
+full-dataset config and overrides the annotation files. Use the
+`*_hardvs300_session.py` configs as a model. For a split with a different
+number of classes, also set `num_classes`, as in the `hardvs100` configs.
 
 ## Training
 
@@ -206,7 +276,8 @@ For a KD checkpoint, this reports both the student and the teacher accuracy.
 ```
 configs/
   _base_/                    model (TSM-R101), schedule (SGD, 40 epochs), runtime
-  hardvs/                    RGB / Event / KD configs: full dataset (300) and 50/100-class subsets
+  hardvs/                    RGB / Event / KD configs: full dataset (300), 50/100-class subsets,
+                             session-based re-split
 hardvs_kd/                   mmaction2 plugins (registered via custom_imports)
   datasets/
     hardvs_frame_dataset.py  single-modality dataset (RGB or event)
@@ -218,5 +289,5 @@ hardvs_kd/                   mmaction2 plugins (registered via custom_imports)
     test_during_train_hook.py       periodic test-set evaluation
 tools/
   train.py, test.py, dist_*.sh      mmaction2 entry points
-  data/hardvs/                      annotation, subset and density scripts
+  data/hardvs/                      annotation, subset, split and density scripts
 ```
