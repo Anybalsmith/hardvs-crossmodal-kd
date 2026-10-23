@@ -271,6 +271,48 @@ python tools/test.py <config> <checkpoint> --work-dir <dir>
 
 For a KD checkpoint, this reports both the student and the teacher accuracy.
 
+## HRI subsets (command gestures)
+
+Small subsets of HARDVS classes useful to command a robot or a drone by
+gestures, trained with TSM-R50 (`configs/hri/`). The class lists are in
+`tools/data/hardvs/hri_classes/`; `hri_classes_v4.csv` holds the 5 classes the
+v1 baselines recognise worst (A072, A006, A073, A129, A106).
+
+```bash
+python tools/data/hardvs/make_hri_subset.py \
+    --classes tools/data/hardvs/hri_classes/hri_classes_v4.csv \
+    --out-dir data/hardvs/annotations/splits/hri_v4_official
+```
+
+Expected sizes for v4: 1354 / 226 / 679 (train / val / test). Class names are
+read from `data/hardvs/HARDVS_300_class.txt` (from the HARDVS release) if it
+exists.
+
+| Config | RGB input |
+|---|---|
+| `rgb_r50_hri_v4.py` | raw APS frames (reference) |
+| `rgb_r50_hri_v4_cadence.py` | half of the long training recordings reduced to 3-4 frames (`CadenceAugSampleFrames`), so that repeated frames stop being a class cue |
+| `rgb_r50_hri_v4_clahe.py` | gray-world white balance + CLAHE on luminance (`ContrastEnhance`) |
+| `rgb_r50_hri_v4_bgblack.py` | background set to black outside the clip-level person mask (`PersonMaskBackground`) |
+| `rgb_r50_hri_v4_cadence3_test.py` | diagnostic, test only: every test recording reduced to 3 frames |
+
+The black-background config needs the person masks, computed once with YOLO11x-seg
+(`pip install ultralytics`):
+
+```bash
+python tools/data/hardvs/make_clip_masks.py \
+    --ann-dir data/hardvs/annotations/splits/hri_v4_official --weights /path/to/yolo11x-seg.pt
+```
+
+Train a config, then test its best validation checkpoint with dumped predictions:
+
+```bash
+tools/hri/train_test.sh configs/hri/rgb_r50_hri_v4_cadence.py 0   # config, GPU id
+```
+
+`python tests/check_hri_pipelines.py` builds every HRI dataset and checks the
+new transforms (no training).
+
 ## Repository layout
 
 ```
@@ -278,16 +320,20 @@ configs/
   _base_/                    model (TSM-R101), schedule (SGD, 40 epochs), runtime
   hardvs/                    RGB / Event / KD configs: full dataset (300), 50/100-class subsets,
                              session-based re-split
+  hri/                       RGB TSM-R50 configs on the HRI command-gesture subsets
 hardvs_kd/                   mmaction2 plugins (registered via custom_imports)
   datasets/
     hardvs_frame_dataset.py  single-modality dataset (RGB or event)
     hardvs_paired_dataset.py paired APS/DVS dataset for KD (shared sampling, synced crop/flip)
-    transforms/              frame decoding, per-modality normalisation, event-density sampling
+    transforms/              frame decoding, per-modality normalisation, event-density sampling,
+                             cadence augmentation, contrast enhancement, person-mask background
   models/
     kd_crossmodal_recognizer2d.py   student + frozen teacher, KD losses
   engine/
     test_during_train_hook.py       periodic test-set evaluation
 tools/
   train.py, test.py, dist_*.sh      mmaction2 entry points
-  data/hardvs/                      annotation, subset, split and density scripts
+  data/hardvs/                      annotation, subset, split, density and person-mask scripts
+  hri/train_test.sh                 train, then test the best checkpoint
+tests/check_hri_pipelines.py        builds the HRI datasets and checks the transforms
 ```

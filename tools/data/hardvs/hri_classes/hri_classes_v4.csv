@@ -1,0 +1,6 @@
+action,hri_command,sources
+72,STOP / attention (bras droit levé),v1 ; classe la moins bien reconnue par les 4 baselines (test officiel v1)
+6,LANDING / descend (bras balayant haut-bas),v1 ; 2e moins bien reconnue
+73,ARM / start engine (cercle main droite),v1 ; 3e moins bien reconnue
+129,NO / emergency stop / abort (bras croisés),v1 ; 4e moins bien reconnue
+106,ARM / start engine (cercle main gauche),v1 ; 5e moins bien reconnue (à égalité avec A066)

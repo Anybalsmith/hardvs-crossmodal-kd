@@ -1,0 +1,17 @@
+action,hri_command,sources
+72,STOP / attention (bras droit levé),liste utilisateur STOP ; UAV-Human A111 stay where you are / A117 have command
+105,STOP / attention (bras gauche levé),liste utilisateur STOP ; UAV-Human A111 / A117
+66,TURN RIGHT / GO THIS WAY (droite),liste utilisateur TURN RIGHT + GO THIS WAY ; UAV-Human A105 move right / A120 turn right ; marshalling turn right
+100,TURN LEFT / GO THIS WAY (gauche),liste utilisateur TURN LEFT + GO THIS WAY ; UAV-Human A104 move left / A119 turn left ; marshalling turn left
+73,ARM / start engine (cercle main droite),liste utilisateur ARM ; marshalling start engines (mouvement circulaire)
+106,ARM / start engine (cercle main gauche),liste utilisateur ARM ; marshalling start engines
+169,COME BACK / come over here,liste utilisateur COME BACK ; UAV-Human A110 come over here / A019 wave hands / A143 call for help ; Drone-Action waving hands
+149,THIS WAY G-3 / hands up (deux bras levés),liste utilisateur GO THIS WAY (G-3) ; UAV-Human A055 put up hands
+129,NO / emergency stop / abort (bras croisés),UAV-Human A033 cross arms to say no / A116 not clear / A114 abandon landing ; marshalling emergency stop
+170,NEED HELP (poing),liste utilisateur NEED HELP (signal for help) + STOP poing fermé
+227,ALL CLEAR / OK (pouce levé),UAV-Human A038 thumb up / A115 all clear
+215,BACK HOME (signe V),liste utilisateur BACK HOME ; UAV-Human A041 victory sign
+207,ACKNOWLEDGE / have command (salut),UAV-Human A031 salute / A117 have command
+23,TAKEOFF / ascend (bras écartés montant),liste utilisateur TAKEOFF ; marshalling (17) move upwards ; UAV-Human A106 ascend
+6,LANDING / descend (bras balayant haut-bas),liste utilisateur LANDING ; marshalling (18) move downwards ; UAV-Human A107 descend
+296,ATTENTION (applaudir),Drone-Action clapping ; UAV-Human A008 applaud

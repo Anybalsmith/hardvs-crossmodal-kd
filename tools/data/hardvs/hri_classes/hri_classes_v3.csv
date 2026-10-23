@@ -1,0 +1,7 @@
+action,hri_command,sources
+169,COME BACK / come over here (wave),liste utilisateur COME BACK ; UAV-Human A110 come over here / A019 wave hands / A143 call for help ; Drone-Action waving hands
+170,NEED HELP (fist),liste utilisateur NEED HELP (signal for help) + STOP poing fermé
+227,ALL CLEAR / OK (thumb up),UAV-Human A038 thumb up / A115 all clear
+215,BACK HOME (V sign),liste utilisateur BACK HOME ; UAV-Human A041 victory sign
+207,ACKNOWLEDGE / have command (salute),UAV-Human A031 salute / A117 have command
+296,ATTENTION (clapping),Drone-Action clapping ; UAV-Human A008 applaud
